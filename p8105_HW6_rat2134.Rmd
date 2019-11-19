@@ -1,0 +1,12 @@
+---
+title: "Homework #6"
+author: "Robert Tumasian (rat2134)"
+date: "11/19/2019"
+output: html_document
+---
+# Problem 1
+```{r}
+#Import and clean data
+
+```
+
