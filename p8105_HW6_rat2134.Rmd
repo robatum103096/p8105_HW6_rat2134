@@ -2,11 +2,155 @@
 title: "Homework #6"
 author: "Robert Tumasian (rat2134)"
 date: "11/19/2019"
-output: html_document
+output: github_document
 ---
+```{r, message=FALSE}
+#Load required packages
+library(tidyverse)
+library(modelr)
+library(mgcv)
+```
+
 # Problem 1
 ```{r}
 #Import and clean data
+birthweight_data = 
+  read.csv("./hw6_data/birthweight.csv") %>%
+  mutate(babysex = factor(babysex),
+         frace = factor(frace),
+         malform = factor(malform),
+         mrace = factor(mrace))
+
+#Check for missing data
+length(which(is.na(birthweight_data))) 
+```
+
+All categorical variables were converted to factors and there are no missing values in the `birthweight` dataset. Now, we will identify an most appropriate regression model for birthweight. We will hypothesize that the following variables underly birthweight:  
+
+* `babysex`: the baby's sex
+* `blength`: the baby's length
+* `fincome`: family income
+* `gaweeks`: gestational age (in weeks)
+* `malform`: the presence of malformations
+* `momage`: the mother's age
+* `smoken`: average number of cigarettes smoked per day during pregnancy
+
+We will use each of these variables in our initial regression model for birthweight.
+```{r}
+#Regression model
+birthweight_reg_model = lm(bwt ~ babysex + blength + fincome + gaweeks + 
+                             malform + momage + smoken, 
+                           data = birthweight_data)
+
+summary(birthweight_reg_model)
+```
+
+From our regression results above, we can see that `babysex` and `malform` are not significantly associated with birthweight (`bwt`), since `p < 0.05`. Therefore, we can remove these variables from the model.
+
+```{r}
+#New regression model
+new_birthweight_reg_model = lm(bwt ~ blength + fincome + gaweeks + momage + smoken, 
+                           data = birthweight_data)
+
+summary(new_birthweight_reg_model)
+```
+
+After removing `babysex` and `malform`, the adjusted R-squared value changes negligibly, meaning that these two variables did not explain any further variance in the outcome that was not already accounted for by the other variables. In other words, these two variables were not substantially improving our model, so removing them was appropriate.
+
+```{r}
+#Plot of model residuals against fitted values
+add_residuals(birthweight_data, new_birthweight_reg_model) %>%
+  add_predictions(new_birthweight_reg_model) %>%
+  ggplot(aes(x = pred, y = resid)) +
+  geom_point() +
+  labs(
+    title = "Residuals vs. Fitted Values",
+    x = "Fitted Birthweight (grams)",
+    y = "Model Residuals"
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red")
 
 ```
+
+Not all of the model residuals seem to be scattered randomly around `y = 0` and outliers are present. Therefore, one or more of the variables in the model may not have a linear relationship with the outcome of interest (birthweight). Transforming the birthweight variable or utilizing formal criteria for outlier removal may foster the development of a stronger model.
+
+```{r}
+#Model comparison #1
+#Using length at birth and gestational age as predictors (main effects only)
+comp_model_1 = lm(bwt ~ blength + gaweeks, data = birthweight_data)
+```
+
+```{r}
+#Model comparison #2
+#Using head circumference, length, sex, and all interactions (including three-way)
+comp_model_2 = lm(bwt ~ (bhead + blength + babysex)^3, data = birthweight_data)
+```
+
+```{r}
+set.seed(144)
+
+#Cross-validation
+cv_data = 
+  crossv_mc(birthweight_data, 100)
+
+cv_data = 
+  cv_data %>% 
+  mutate(initial_model  = map(train, ~new_birthweight_reg_model),
+         model_comp_1 = map(train, ~comp_model_1),
+         model_comp_2  = map(train, ~comp_model_2)) %>% 
+  mutate(rmse_initial_model = map2_dbl(initial_model, test, ~rmse(model = .x, data = .y)),
+         rmse_model_comp_1 = map2_dbl(model_comp_1, test, ~rmse(model = .x, data = .y)),
+         rmse_model_comp_2 = map2_dbl(model_comp_2, test, ~rmse(model = .x, data = .y)))
+
+#Plot of the prediction error distribution for each model
+cv_data %>% 
+  select(starts_with("rmse")) %>% 
+pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + 
+  geom_violin() +
+  scale_x_discrete(labels=c("initial_model" = "Initial", 
+                            "model_comp_1" = "Comparison 1",
+                            "model_comp_2" = "Comparison 2")) +
+  labs(
+    title = "Prediction error distribution for each model",
+    x = "Model",
+    y = "RMSE"
+  )
+```
+
+We can see that, on average, Comparison 2 (the model containing head circumference, length, sex, and all interactions) has the lowest RMSE and is therefore the strongest model.
+
+# Problem 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
