@@ -19,7 +19,18 @@ birthweight_data =
   mutate(babysex = factor(babysex),
          frace = factor(frace),
          malform = factor(malform),
-         mrace = factor(mrace))
+         mrace = factor(mrace),
+         babysex = recode(babysex,
+                          "1" = "male", "2" = "female"),
+         frace = recode(frace,
+                        "1" = "white", "2" = "black", "3" = "asian",
+                        "4" = "puerto rican", "8" = "other",
+                        "9" = "unknown"),
+         malform = recode(malform,
+                           "0" = "absent", "1" = "present"),
+         mrace = recode(mrace,
+                        "1" = "white", "2" = "black", "3" = "asian",
+                        "4" = "puerto rican", "8" = "other"))
 
 #Check for missing data
 length(which(is.na(birthweight_data))) 
@@ -27,15 +38,16 @@ length(which(is.na(birthweight_data)))
 
 All categorical variables were converted to factors and there are no missing values in the `birthweight` dataset. Now, we will identify an most appropriate regression model for birthweight. We will hypothesize that the following variables underly birthweight:  
 
-* `babysex`: the baby's sex
-* `blength`: the baby's length
-* `fincome`: family income
+* `babysex`: the baby's sex (male or female)
+* `blength`: the baby's length (in centimeters)
+* `fincome`: family income (in dollars)
 * `gaweeks`: gestational age (in weeks)
-* `malform`: the presence of malformations
-* `momage`: the mother's age
+* `malform`: the presence of malformations (absent or present)
+* `momage`: the mother's age (in years)
 * `smoken`: average number of cigarettes smoked per day during pregnancy
 
-We will use each of these variables in our initial regression model for birthweight.
+The variables above will be used in our initial regression model for birthweight.
+
 ```{r}
 #Regression model
 birthweight_reg_model = lm(bwt ~ babysex + blength + fincome + gaweeks + 
@@ -55,7 +67,7 @@ new_birthweight_reg_model = lm(bwt ~ blength + fincome + gaweeks + momage + smok
 summary(new_birthweight_reg_model)
 ```
 
-After removing `babysex` and `malform`, the adjusted R-squared value changes negligibly, meaning that these two variables did not explain any further variance in the outcome that was not already accounted for by the other variables. In other words, these two variables were not substantially improving our model, so removing them was appropriate.
+After removing `babysex` and `malform`, the adjusted R-squared value changes negligibly, meaning that these two variables did not explain any further variance in the outcome that was not already accounted for by the other variables in the model. Therefore, removing them was appropriate.
 
 ```{r}
 #Plot of model residuals against fitted values
@@ -72,7 +84,7 @@ add_residuals(birthweight_data, new_birthweight_reg_model) %>%
 
 ```
 
-Not all of the model residuals seem to be scattered randomly around `y = 0` and outliers are present. Therefore, one or more of the variables in the model may not have a linear relationship with the outcome of interest (birthweight). Transforming the birthweight variable or implementing formal criteria for outlier removal may foster the development of a stronger model.
+Not all of the model residuals seem to be scattered randomly around `y = 0` (outliers are present). Therefore, one or more of the variables in the model may have a nonlinear relationship with the outcome of interest (birthweight). Transforming the birthweight variable or implementing formal criteria for outlier removal would foster the development of a stronger model.
 
 ```{r}
 #Model comparison #1
@@ -125,7 +137,7 @@ pivot_longer(
   )
 ```
 
-We can see that, on average, model comparison #2 (the model containing head circumference, length, sex, and all interactions) has the lowest RMSE and is therefore the strongest model.
+We can see that model comparison #2 (the model containing head circumference, length, sex, and all interactions), on average, has the lowest RMSE and is therefore the strongest model.
 
 # Problem 2
 ```{r, message=FALSE}
@@ -176,13 +188,20 @@ quantile(pull(bootstrap_results, r_squared), probs = c(0.025, 0.975))
 quantile(pull(bootstrap_results, log_est), probs = c(0.025, 0.975))
 ```
 
-Therefore, a 95% confidence interval for the estimated coefficient of determination is (0.894, 0.927). A 95% confidence interval for the log of the product of the beta estimates is (1.965, 2.059).
+A 95% confidence interval for the estimated coefficient of determination is (0.894, 0.927). Similarly, a 95% confidence interval for the log of the product of the coefficient estimates is (1.965, 2.059).
 
-```{r}
-#Plotting distribution of estimates
+```{r, message=FALSE}
 ggplot(data = bootstrap_results, aes(x = r_squared)) +
-  geom_histogram()
-
-ggplot(data = bootstrap_results, aes(x = log_est)) +
-  geom_histogram()
+  geom_histogram() +
+  labs(title = "Distribution of R-squared estimates")
 ```
+
+We can see that the distribution of the estimated coefficients of determination from our bootstrapping process is fairly normally distributed. Each of our bootstrap models were able to explain between 88% and 94% of the variance in the outcome (birthweight), which is very strong.
+
+```{r, message=FALSE}
+ggplot(data = bootstrap_results, aes(x = log_est)) +
+  geom_histogram() +
+  labs(title = "Distribution of log of product of coefficient estimates")
+```
+
+Similarly, we can see that the distribution of the log of the product of the coefficient estimates from our bootstrapping process is fairly normally distributed.
